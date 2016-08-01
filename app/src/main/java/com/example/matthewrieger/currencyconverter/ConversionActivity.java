@@ -1,12 +1,18 @@
 package com.example.matthewrieger.currencyconverter;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.example.matthewrieger.currencyconverter.service.ConversionService;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
@@ -48,10 +54,25 @@ public class ConversionActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(LOG_TAG, "Activity Created, hash:" + hashCode());
         setContentView(R.layout.activity_conversion);
 
-        String url = "http://10.0.3.2:3000/convert/USD/EUR.json";
-        loadConversionTask.execute(url);
+        IntentFilter intentFilter = new IntentFilter(ConversionService.CONVERSION_RESULT_ACTION);
+        LocalBroadcastManager.getInstance(this).registerReceiver(conversionReceiver, intentFilter);
+        convertCurrency("USD", "EUR");
+    }
+
+    private void convertCurrency(String from, String to) {
+        Intent convertIntent = new Intent(this, ConversionService.class);
+        convertIntent.putExtra(ConversionService.FROM, from);
+        convertIntent.putExtra(ConversionService.TO, to);
+        startService(convertIntent);
+    }
+
+    @Override
+    protected void onDestroy() {
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(conversionReceiver);
+        super.onDestroy();
     }
 
     @Override
@@ -75,5 +96,13 @@ public class ConversionActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
+
+    private BroadcastReceiver conversionReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String result = intent.getStringExtra(ConversionService.CONVERSION_RESULT_EXTRA);
+            conversionComplete(result);
+        }
+    };
 
 }
