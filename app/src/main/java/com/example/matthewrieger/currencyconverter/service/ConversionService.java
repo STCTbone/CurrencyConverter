@@ -5,11 +5,15 @@ import android.content.Intent;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.example.matthewrieger.currencyconverter.api.ConversionAPI;
+import com.example.matthewrieger.currencyconverter.model.ConversionRate;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
 
 import java.io.IOException;
+
+import retrofit.RestAdapter;
 
 public class ConversionService extends IntentService {
     public static final String CONVERSION_RESULT_ACTION = "CONVERSION_RESULT_ACTION";
@@ -26,19 +30,13 @@ public class ConversionService extends IntentService {
     @Override protected void onHandleIntent(Intent intent) {
         String fromCurrency = intent.getStringExtra(FROM);
         String toCurrency = intent.getStringExtra(TO);
-        String url = String.format("http://10.0.3.2:3000/convert/%s/%s.json", fromCurrency, toCurrency);
-        OkHttpClient client = new OkHttpClient();
-        Request conversionRequest = new Request.Builder().url(url).build();
-        Response response = null;
-        try {
-            response = client.newCall(conversionRequest).execute();
-            String body = response.body().string();
+        RestAdapter adapter = new RestAdapter.Builder()
+                .setEndpoint("http://10.0.3.2:3000").build();
+        ConversionAPI api = adapter.create(ConversionAPI.class);
+        ConversionRate rate = api.convert(fromCurrency, toCurrency);
 
-            Intent conversionResultIntent = new Intent(CONVERSION_RESULT_ACTION);
-            conversionResultIntent.putExtra(CONVERSION_RESULT_EXTRA, body);
-            LocalBroadcastManager.getInstance(this).sendBroadcast(conversionResultIntent);
-        } catch (IOException e) {
-            Log.e(LOG_TAG, e.getMessage());
-        }
+        Intent conversionResultIntent = new Intent(CONVERSION_RESULT_ACTION);
+        conversionResultIntent.putExtra(CONVERSION_RESULT_EXTRA, rate);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(conversionResultIntent);
     }
 }
